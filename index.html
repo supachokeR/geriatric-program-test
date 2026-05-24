@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="th" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Geriatric Clinic CGA WebApp | คลินิกผู้สูงอายุ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Sarabun','Inter','system-ui','sans-serif'] },
+          colors: {
+            brand: {
+              50:'#f8fafc',100:'#f1f5f9',200:'#e2e8f0',300:'#cbd5e1',
+              400:'#94a3b8',500:'#64748b',600:'#475569',700:'#334155',
+              800:'#1e293b',900:'#0f172a'
+            },
+            clinic: {50:'#fff7ed',100:'#ffedd5',200:'#fed7aa',300:'#fdba74',400:'#fb923c',500:'#f97316',600:'#ea580c'}
+          },
+          boxShadow: { soft: '0 10px 30px rgba(15, 23, 42, 0.08)' }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Sarabun', system-ui, sans-serif; }
+    .glass { background: rgba(255,255,255,.82); backdrop-filter: blur(16px); }
+    .card { border: 1px solid rgb(226 232 240); border-radius: 1.25rem; background: white; box-shadow: 0 10px 30px rgba(15,23,42,.06); }
+    .input { width:100%; border:1px solid rgb(203 213 225); border-radius:.9rem; padding:.65rem .85rem; outline:none; background:white; }
+    .input:focus { border-color:#f97316; box-shadow:0 0 0 3px rgba(249,115,22,.12); }
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:.45rem; border-radius:.9rem; padding:.65rem 1rem; font-weight:700; transition:.15s; }
+    .btn-primary { background:#ea580c; color:white; }
+    .btn-primary:hover { background:#c2410c; }
+    .btn-soft { background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; }
+    .btn-soft:hover { background:#ffedd5; }
+    .btn-ghost { background:white; color:#334155; border:1px solid #e2e8f0; }
+    .btn-ghost:hover { background:#f8fafc; }
+    .badge { display:inline-flex; align-items:center; border-radius:999px; padding:.2rem .55rem; font-size:.75rem; font-weight:700; }
+    .navBtn.active { background:#fff7ed; color:#c2410c; border-color:#fdba74; }
+    .page { display:none; }
+    .page.active { display:block; }
+    details > summary::-webkit-details-marker { display:none; }
+    @media print {
+      .no-print { display:none !important; }
+      body { background:white !important; }
+      .print-card { box-shadow:none !important; border:1px solid #ddd !important; break-inside:avoid; }
+      .page { display:block !important; }
+      #appShell { display:block !important; }
+      #sidebar { display:none !important; }
+      #mainContent { margin:0 !important; max-width:100% !important; }
+      .card { box-shadow:none !important; break-inside:avoid; }
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-orange-50 via-white to-slate-100 text-slate-800">
+  <div class="no-print sticky top-0 z-50 border-b border-orange-100 glass">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-400 text-white grid place-items-center shadow-soft">
+          <span class="text-xl">👵</span>
+        </div>
+        <div>
+          <h1 class="text-lg md:text-2xl font-extrabold tracking-tight">Geriatric Clinic CGA WebApp</h1>
+          <p class="text-xs md:text-sm text-slate-500">เครื่องมือประเมินผู้สูงอายุแบบองค์รวม สำหรับแพทย์ประจำคลินิก</p>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button onclick="saveAll()" class="btn btn-soft">💾 บันทึกในเครื่อง</button>
+        <button onclick="loadAll()" class="btn btn-ghost">↩️ โหลดข้อมูล</button>
+        <button onclick="copySummary()" class="btn btn-ghost">📋 คัดลอกสรุป</button>
+        <button onclick="window.print()" class="btn btn-primary">🖨️ พิมพ์/บันทึก PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="appShell" class="max-w-7xl mx-auto px-4 py-5 lg:grid lg:grid-cols-[290px_1fr] gap-5">
+    <aside id="sidebar" class="no-print lg:sticky lg:top-24 h-fit card p-3 mb-5 lg:mb-0">
+      <div class="p-3">
+        <label class="text-xs font-bold text-slate-500">ค้นหาเมนู/แบบประเมิน</label>
+        <input id="menuSearch" oninput="filterNav()" class="input mt-2" placeholder="เช่น FRAIL, ADL, ยา, ล้ม" />
+      </div>
+      <nav id="navList" class="space-y-1">
+        <button class="navBtn active w-full text-left btn btn-ghost justify-start" onclick="showPage('dashboard', this)">🏠 Dashboard</button>
+        <button class="navBtn w-full text-left btn btn-ghost justify-start" onclick="showPage('patient', this)">👤 ข้อมูลผู้ป่วย</button>
+        <button class="navBtn w-full text-left btn btn-ghost justify-start" onclick="showPage('frailty', this)">🧓 Frailty / ADL / IADL</button>
+        <button class="navBtn w-full text-left btn btn-ghost justify-start" onclick="showPage('cognition', this)">🧠 Cognition / Mood</button>
+        <button class="navBtn w-full text-left btn btn-ghost justify-start" onclick="showPage('mobility', this)">🚶 Fall / Sarcopenia</button>
+        <button class="navBtn w-full text-left btn btn-ghost justify-start" onclick="showPage('nutrition', this)">🍽️ Nutrition</button>
+        <button class="navBtn w-full text-left btn btn-ghost justify-start" onclick="showPage('medication', this)">💊 Medication Review</button>
+        <button class="navBtn w-full text-left btn btn-ghost justify-start" onclick="showPage('sensory', this)">👁️ Sensory / Oral / Swallow</button>
+        <button class="navBtn w-full text-left btn btn-ghost justify-start" onclick="showPage('continence', this)">🚻 Continence / Constipation</button>
+        <button class="navBtn w-full text-left btn btn-ghost justify-start" onclick="showPage('homecare', this)">🏡 Caregiver / Home / ACP</button>
+        <button class="navBtn w-full text-left btn btn-ghost justify-start" onclick="showPage('summary', this)">📄 สรุปแผนดูแล</button>
+      </nav>
+      <div class="mt-4 p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600 leading-relaxed">
+        <b>หมายเหตุ:</b> ใช้เป็น screening/clinical checklist เพื่อช่วยตัดสินใจ ไม่แทนการวินิจฉัยหรือแนวทางเฉพาะราย ควรใช้ร่วมกับ clinical judgment และบริบทของผู้ป่วย
+      </div>
+    </aside>
+
+    <main id="mainContent" class="space-y-5">
+      <!-- Dashboard -->
+      <section id="dashboard" class="page active">
+        <div class="grid md:grid-cols-4 gap-4">
+          <div class="card p-5 bg-gradient-to-br from-orange-500 to-amber-400 text-white">
+            <p class="text-sm opacity-90">CGA Risk Level</p>
+            <h2 id="riskLevel" class="text-3xl font-extrabold mt-2">ยังไม่ประเมิน</h2>
+            <p id="riskText" class="text-sm mt-2 opacity-95">กรอกข้อมูลแต่ละหมวดเพื่อสร้างแผนดูแล</p>
+          </div>
+          <div class="card p-5">
+            <p class="text-sm text-slate-500">คะแนนผิดปกติ/ธงแดง</p>
+            <h2 id="flagCount" class="text-3xl font-extrabold text-slate-900 mt-2">0</h2>
+            <p class="text-sm text-slate-500 mt-2">ระบบนับจากผลประเมินที่กรอก</p>
+          </div>
+          <div class="card p-5">
+            <p class="text-sm text-slate-500">รายการที่ควรทำต่อ</p>
+            <h2 id="actionCount" class="text-3xl font-extrabold text-slate-900 mt-2">0</h2>
+            <p class="text-sm text-slate-500 mt-2">แสดงในหน้าสรุปแผนดูแล</p>
+          </div>
+          <div class="card p-5">
+            <p class="text-sm text-slate-500">สถานะข้อมูล</p>
+            <h2 id="completionPercent" class="text-3xl font-extrabold text-slate-900 mt-2">0%</h2>
+            <p class="text-sm text-slate-500 mt-2">กรอกมากขึ้นเพื่อได้แผนแม่นขึ้น</p>
+          </div>
+        </div>
+
+        <div class="card p-5 mt-5">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <h2 class="text-xl font-extrabold">Rapid Geriatric Screening 10 ข้อ</h2>
+              <p class="text-sm text-slate-500">ใช้คัดกรองรวดเร็วหน้า OPD ถ้าผิดปกติให้ไปประเมินหมวดที่เกี่ยวข้องต่อ</p>
+            </div>
+            <span id="rapidScoreBadge" class="badge bg-slate-100 text-slate-700">0/10</span>
+          </div>
+          <div class="grid md:grid-cols-2 gap-3 mt-4" id="rapidScreen"></div>
+        </div>
+
+        <div class="grid lg:grid-cols-2 gap-5 mt-5">
+          <div class="card p-5">
+            <h3 class="text-lg font-extrabold">ธงแดง/ความเสี่ยงที่ระบบตรวจพบ</h3>
+            <ul id="flagList" class="mt-3 space-y-2 text-sm text-slate-700">
+              <li class="text-slate-400">ยังไม่มีข้อมูลผิดปกติ</li>
+            </ul>
+          </div>
+          <div class="card p-5">
+            <h3 class="text-lg font-extrabold">แผนดูแลที่แนะนำ</h3>
+            <ul id="actionList" class="mt-3 space-y-2 text-sm text-slate-700">
+              <li class="text-slate-400">กรอกข้อมูลเพื่อให้ระบบสร้างคำแนะนำ</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Patient -->
+      <section id="patient" class="page">
+        <div class="card p-5">
+          <h2 class="text-xl font-extrabold">ข้อมูลผู้ป่วยและบริบทการดูแล</h2>
+          <div class="grid md:grid-cols-4 gap-4 mt-4">
+            <label>ชื่อ-สกุล<input data-save id="ptName" class="input mt-1" placeholder="ชื่อผู้ป่วย"></label>
+            <label>HN<input data-save id="ptHN" class="input mt-1" placeholder="HN"></label>
+            <label>อายุ<input data-save id="ptAge" type="number" class="input mt-1" placeholder="ปี"></label>
+            <label>เพศ<select data-save id="ptSex" class="input mt-1"><option value="">เลือก</option><option>ชาย</option><option>หญิง</option><option>อื่น ๆ</option></select></label>
+            <label>วันที่ประเมิน<input data-save id="visitDate" type="date" class="input mt-1"></label>
+            <label>ผู้ดูแลหลัก<input data-save id="caregiverName" class="input mt-1" placeholder="ชื่อ/ความสัมพันธ์"></label>
+            <label>เบอร์ผู้ดูแล<input data-save id="caregiverPhone" class="input mt-1" placeholder="โทรศัพท์"></label>
+            <label>สถานะที่อยู่อาศัย<select data-save id="living" class="input mt-1"><option value="">เลือก</option><option>อยู่กับครอบครัว</option><option>อยู่คนเดียว</option><option>อยู่กับผู้ดูแล</option><option>สถานดูแลระยะยาว</option></select></label>
+          </div>
+          <label class="block mt-4">โรคประจำตัว / ปัญหาหลัก<textarea data-save id="problemList" class="input mt-1 min-h-[110px]" placeholder="เช่น HT, DM, CKD, stroke, dementia, falls, polypharmacy"></textarea></label>
+          <label class="block mt-4">เป้าหมายของ visit นี้<textarea data-save id="visitGoal" class="input mt-1 min-h-[90px]" placeholder="เช่น ประเมินล้ม, ทบทวนยา, น้ำหนักลด, ความจำ, ACP"></textarea></label>
+        </div>
+      </section>
+
+      <!-- Frailty -->
+      <section id="frailty" class="page space-y-5">
+        <div class="grid lg:grid-cols-2 gap-5">
+          <div class="card p-5">
+            <div class="flex justify-between gap-3">
+              <div>
+                <h2 class="text-xl font-extrabold">FRAIL Scale</h2>
+                <p class="text-sm text-slate-500">0 = robust, 1–2 = pre-frail, 3–5 = frail</p>
+              </div>
+              <span id="frailBadge" class="badge bg-slate-100 text-slate-700">0/5</span>
+            </div>
+            <div id="frailItems" class="mt-4 space-y-3"></div>
+          </div>
+
+          <div class="card p-5">
+            <h2 class="text-xl font-extrabold">Clinical Frailty Scale: CFS</h2>
+            <p class="text-sm text-slate-500">ประเมินภาพรวมก่อนเจ็บป่วยเฉียบพลัน โดยดู mobility, function, cognition, comorbidity</p>
+            <select data-save id="cfs" class="input mt-4" onchange="updateAll()">
+              <option value="">ยังไม่เลือก</option>
+              <option value="1">1 Very Fit - แข็งแรงมาก</option>
+              <option value="2">2 Fit - แข็งแรง</option>
+              <option value="3">3 Managing Well - มีโรคแต่จัดการได้ดี</option>
+              <option value="4">4 Vulnerable - เริ่มช้าลง/เสี่ยง</option>
+              <option value="5">5 Mild Frailty - ต้องช่วย IADL บางส่วน</option>
+              <option value="6">6 Moderate Frailty - ต้องช่วยกิจกรรมนอกบ้าน/ในบ้านมากขึ้น</option>
+              <option value="7">7 Severe Frailty - พึ่งพาในการดูแลส่วนตัว</option>
+              <option value="8">8 Very Severe Frailty - พึ่งพาเกือบทั้งหมด</option>
+              <option value="9">9 Terminally Ill - ระยะท้าย</option>
+            </select>
+            <div id="cfsInterpret" class="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">เลือกคะแนนเพื่อแปลผล</div>
+          </div>
+        </div>
+
+        <div class="grid lg:grid-cols-3 gap-5">
+          <div class="card p-5 lg:col-span-2">
+            <div class="flex justify-between">
+              <h2 class="text-xl font-extrabold">Modified Barthel ADL Index</h2>
+              <span id="barthelBadge" class="badge bg-slate-100 text-slate-700">0/20</span>
+            </div>
+            <div id="barthelItems" class="grid md:grid-cols-2 gap-3 mt-4"></div>
+          </div>
+
+          <div class="card p-5">
+            <div class="flex justify-between">
+              <h2 class="text-xl font-extrabold">Katz ADL</h2>
+              <span id="katzBadge" class="badge bg-slate-100 text-slate-700">0/6</span>
+            </div>
+            <div id="katzItems" class="mt-4 space-y-2"></div>
+          </div>
+        </div>
+
+        <div class="card p-5">
+          <div class="flex justify-between">
+            <div>
+              <h2 class="text-xl font-extrabold">Lawton IADL</h2>
+              <p class="text-sm text-slate-500">ประเมินกิจวัตรซับซ้อน: โทรศัพท์ ซื้อของ ทำอาหาร งานบ้าน ซักผ้า เดินทาง จัดยา จัดเงิน</p>
+            </div>
+            <span id="lawtonBadge" class="badge bg-slate-100 text-slate-700">0/8</span>
+          </div>
+          <div id="lawtonItems" class="grid md:grid-cols-4 gap-3 mt-4"></div>
+        </div>
+      </section>
+
+      <!-- Cognition Mood -->
+      <section id="cognition" class="page space-y-5">
+        <div class="grid lg:grid-cols-2 gap-5">
+          <div class="card p-5">
+            <h2 class="text-xl font-extrabold">Cognition Screening</h2>
+            <div class="grid md:grid-cols-2 gap-4 mt-4">
+              <label>Mini-Cog: จำคำ 3 คำ<input data-save id="miniRecall" type="number" min="0" max="3" class="input mt-1" oninput="updateAll()" placeholder="0–3"></label>
+              <label>Mini-Cog: Clock Drawing<input data-save id="miniClock" type="number" min="0" max="2" class="input mt-1" oninput="updateAll()" placeholder="0–2"></label>
+              <label>MMSE-Thai<input data-save id="mmse" type="number" min="0" max="30" class="input mt-1" oninput="updateAll()" placeholder="0–30"></label>
+              <label>TMSE<input data-save id="tmse" type="number" min="0" max="30" class="input mt-1" oninput="updateAll()" placeholder="0–30"></label>
+              <label>MoCA-Thai<input data-save id="moca" type="number" min="0" max="30" class="input mt-1" oninput="updateAll()" placeholder="0–30"></label>
+              <label>ระดับการศึกษา<select data-save id="education" class="input mt-1" onchange="updateAll()"><option value="">เลือก</option><option value="illiterate">ไม่ได้เรียน/อ่านเขียนไม่ได้</option><option value="primary">ประถมศึกษา</option><option value="higher">สูงกว่าประถม</option></select></label>
+            </div>
+            <div id="cogInterpret" class="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">กรอกคะแนนเพื่อแปลผล</div>
+          </div>
+
+          <div class="card p-5">
+            <div class="flex justify-between">
+              <div>
+                <h2 class="text-xl font-extrabold">2Q Depression Screen</h2>
+                <p class="text-sm text-slate-500">ช่วง 2 สัปดาห์ที่ผ่านมา รวมวันนี้</p>
+              </div>
+              <span id="twoQBadge" class="badge bg-slate-100 text-slate-700">0/2</span>
+            </div>
+            <div id="twoQItems" class="mt-4 space-y-3"></div>
+            <div id="twoQInterpret" class="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">ถ้าตอบมีข้อใดข้อหนึ่ง ควรทำ 9Q ต่อ</div>
+          </div>
+        </div>
+
+        <div class="card p-5">
+          <div class="flex justify-between">
+            <div>
+              <h2 class="text-xl font-extrabold">9Q Depression Severity</h2>
+              <p class="text-sm text-slate-500">0 ไม่มี, 1 บางวัน, 2 บ่อย, 3 ทุกวัน</p>
+            </div>
+            <span id="nineQBadge" class="badge bg-slate-100 text-slate-700">0/27</span>
+          </div>
+          <div id="nineQItems" class="grid md:grid-cols-3 gap-3 mt-4"></div>
+        </div>
+
+        <div class="card p-5">
+          <div class="flex justify-between">
+            <div>
+              <h2 class="text-xl font-extrabold">TGDS-15</h2>
+              <p class="text-sm text-slate-500">แบบคัดกรองซึมเศร้าผู้สูงอายุไทยแบบสั้น</p>
+            </div>
+            <span id="tgdsBadge" class="badge bg-slate-100 text-slate-700">0/15</span>
+          </div>
+          <div id="tgdsItems" class="grid md:grid-cols-3 gap-3 mt-4"></div>
+        </div>
+      </section>
+
+      <!-- Mobility -->
+      <section id="mobility" class="page space-y-5">
+        <div class="grid lg:grid-cols-2 gap-5">
+          <div class="card p-5">
+            <h2 class="text-xl font-extrabold">Timed Up and Go / Gait Speed / Balance</h2>
+            <div class="grid md:grid-cols-2 gap-4 mt-4">
+              <label>TUG time (วินาที)<input data-save id="tug" type="number" step="0.1" class="input mt-1" oninput="updateAll()" placeholder="เช่น 13.5"></label>
+              <label>ระยะทาง gait speed (เมตร)<input data-save id="gaitDistance" type="number" step="0.1" class="input mt-1" oninput="updateAll()" placeholder="เช่น 4"></label>
+              <label>เวลาเดิน (วินาที)<input data-save id="gaitTime" type="number" step="0.1" class="input mt-1" oninput="updateAll()" placeholder="เช่น 5"></label>
+              <label>Balance: Tandem stand 10 วินาที<select data-save id="tandem" class="input mt-1" onchange="updateAll()"><option value="">ยังไม่ทำ</option><option value="pass">ผ่าน</option><option value="fail">ไม่ผ่าน</option></select></label>
+            </div>
+            <div id="mobilityInterpret" class="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">กรอกผลเพื่อแปลผล</div>
+          </div>
+
+          <div class="card p-5">
+            <h2 class="text-xl font-extrabold">Orthostatic BP</h2>
+            <p class="text-sm text-slate-500">วัดหลังนอนพัก 5 นาที แล้ววัดหลังยืน 1 และ 3 นาที</p>
+            <div class="grid md:grid-cols-2 gap-4 mt-4">
+              <label>SBP นอน<input data-save id="sbpLie" type="number" class="input mt-1" oninput="updateAll()"></label>
+              <label>DBP นอน<input data-save id="dbpLie" type="number" class="input mt-1" oninput="updateAll()"></label>
+              <label>SBP ยืน 3 นาที<input data-save id="sbpStand" type="number" class="input mt-1" oninput="updateAll()"></label>
+              <label>DBP ยืน 3 นาที<input data-save id="dbpStand" type="number" class="input mt-1" oninput="updateAll()"></label>
+            </div>
+            <div id="orthostaticInterpret" class="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">เกณฑ์ทั่วไป: SBP ลด ≥20 หรือ DBP ลด ≥10 mmHg</div>
+          </div>
+        </div>
+
+        <div class="grid lg:grid-cols-2 gap-5">
+          <div class="card p-5">
+            <div class="flex justify-between">
+              <div>
+                <h2 class="text-xl font-extrabold">SARC-F</h2>
+                <p class="text-sm text-slate-500">0 ไม่ลำบาก, 1 ลำบากบ้าง, 2 ลำบากมาก/ทำไม่ได้</p>
+              </div>
+              <span id="sarcFBadge" class="badge bg-slate-100 text-slate-700">0/10</span>
+            </div>
+            <div id="sarcFItems" class="mt-4 space-y-3"></div>
+          </div>
+
+          <div class="card p-5">
+            <h2 class="text-xl font-extrabold">Calf / Grip / Chair Stand</h2>
+            <div class="grid md:grid-cols-2 gap-4 mt-4">
+              <label>รอบน่อง (cm)<input data-save id="calf" type="number" step="0.1" class="input mt-1" oninput="updateAll()"></label>
+              <label>แรงบีบมือ (kg)<input data-save id="grip" type="number" step="0.1" class="input mt-1" oninput="updateAll()"></label>
+              <label>5-time chair stand (sec)<input data-save id="chair5" type="number" step="0.1" class="input mt-1" oninput="updateAll()"></label>
+              <label>ประวัติล้ม 1 ปี<select data-save id="fallHistory" class="input mt-1" onchange="updateAll()"><option value="">ไม่ระบุ</option><option value="no">ไม่เคย</option><option value="once">1 ครั้ง</option><option value="multiple">≥2 ครั้ง</option></select></label>
+            </div>
+            <div id="sarcInterpret" class="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">กรอกค่าเพื่อประเมินกล้ามเนื้อน้อย/แรงน้อย</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Nutrition -->
+      <section id="nutrition" class="page space-y-5">
+        <div class="grid lg:grid-cols-2 gap-5">
+          <div class="card p-5">
+            <div class="flex justify-between">
+              <div>
+                <h2 class="text-xl font-extrabold">MNA-SF</h2>
+                <p class="text-sm text-slate-500">12–14 ปกติ, 8–11 เสี่ยง, 0–7 ขาดสารอาหาร</p>
+              </div>
+              <span id="mnaBadge" class="badge bg-slate-100 text-slate-700">0/14</span>
+            </div>
+            <div id="mnaItems" class="mt-4 space-y-3"></div>
+          </div>
+
+          <div class="card p-5">
+            <h2 class="text-xl font-extrabold">BMI / % Weight Loss / Albumin</h2>
+            <div class="grid md:grid-cols-2 gap-4 mt-4">
+              <label>น้ำหนักปัจจุบัน (kg)<input data-save id="weightNow" type="number" step="0.1" class="input mt-1" oninput="updateAll()"></label>
+              <label>ส่วนสูง (cm)<input data-save id="heightCm" type="number" step="0.1" class="input mt-1" oninput="updateAll()"></label>
+              <label>น้ำหนักเดิม (kg)<input data-save id="weightPrev" type="number" step="0.1" class="input mt-1" oninput="updateAll()"></label>
+              <label>ช่วงเวลาน้ำหนักลด<select data-save id="weightPeriod" class="input mt-1" onchange="updateAll()"><option value="">ไม่ระบุ</option><option value="1m">1 เดือน</option><option value="3m">3 เดือน</option><option value="6m">6 เดือน</option><option value="12m">12 เดือน</option></select></label>
+              <label>Albumin (g/dL) ตามข้อบ่งชี้<input data-save id="albumin" type="number" step="0.1" class="input mt-1" oninput="updateAll()"></label>
+              <label>กินได้น้อยลง<select data-save id="lowIntake" class="input mt-1" onchange="updateAll()"><option value="">ไม่ระบุ</option><option value="no">ไม่ใช่</option><option value="yes">ใช่</option></select></label>
+            </div>
+            <div id="nutritionInterpret" class="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">กรอกข้อมูลเพื่อคำนวณ BMI และน้ำหนักลด</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Medication -->
+      <section id="medication" class="page space-y-5">
+        <div class="card p-5">
+          <h2 class="text-xl font-extrabold">Medication Reconciliation</h2>
+          <p class="text-sm text-slate-500">ทำ brown-bag review และสร้าง medication list เดียวที่ตรงกับยาจริงที่ผู้ป่วยใช้</p>
+          <div class="grid md:grid-cols-4 gap-4 mt-4">
+            <label>จำนวนยาที่ใช้ประจำ<input data-save id="medCount" type="number" min="0" class="input mt-1" oninput="updateAll()"></label>
+            <label>ใช้สมุนไพร/อาหารเสริม<select data-save id="supplement" class="input mt-1" onchange="updateAll()"><option value="">ไม่ระบุ</option><option value="no">ไม่ใช้</option><option value="yes">ใช้</option></select></label>
+            <label>หลัง discharge ล่าสุด<select data-save id="recentDischarge" class="input mt-1" onchange="updateAll()"><option value="">ไม่ระบุ</option><option value="no">ไม่ใช่</option><option value="yes">ใช่</option></select></label>
+            <label>ผู้ป่วย/ญาติจัดยาเองได้<select data-save id="medManage" class="input mt-1" onchange="updateAll()"><option value="">ไม่ระบุ</option><option value="yes">ได้</option><option value="no">ไม่ได้/ไม่มั่นใจ</option></select></label>
+          </div>
+          <label class="block mt-4">รายการยา / ปัญหายาที่พบ<textarea data-save id="medList" class="input mt-1 min-h-[130px]" placeholder="บันทึกยา ขนาด วิธีใช้ ข้อบ่งชี้ และ discrepancy"></textarea></label>
+        </div>
+
+        <div class="grid lg:grid-cols-3 gap-5">
+          <div class="card p-5">
+            <h3 class="text-lg font-extrabold">Beers Criteria Screen</h3>
+            <div id="beersItems" class="mt-3 space-y-2"></div>
+          </div>
+          <div class="card p-5">
+            <h3 class="text-lg font-extrabold">STOPP Prompts</h3>
+            <div id="stoppItems" class="mt-3 space-y-2"></div>
+          </div>
+          <div class="card p-5">
+            <h3 class="text-lg font-extrabold">START Prompts</h3>
+            <div id="startItems" class="mt-3 space-y-2"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Sensory -->
+      <section id="sensory" class="page space-y-5">
+        <div class="grid lg:grid-cols-2 gap-5">
+          <div class="card p-5">
+            <h2 class="text-xl font-extrabold">Vision / Hearing</h2>
+            <div class="grid md:grid-cols-2 gap-4 mt-4">
+              <label>Snellen ตาขวา<input data-save id="snellenR" class="input mt-1" placeholder="เช่น 6/18"></label>
+              <label>Snellen ตาซ้าย<input data-save id="snellenL" class="input mt-1" placeholder="เช่น 6/12"></label>
+              <label>Whisper test ขวา<select data-save id="whisperR" class="input mt-1" onchange="updateAll()"><option value="">ยังไม่ตรวจ</option><option value="pass">ผ่าน</option><option value="fail">ไม่ผ่าน</option></select></label>
+              <label>Whisper test ซ้าย<select data-save id="whisperL" class="input mt-1" onchange="updateAll()"><option value="">ยังไม่ตรวจ</option><option value="pass">ผ่าน</option><option value="fail">ไม่ผ่าน</option></select></label>
+              <label>สงสัยต้อกระจก<select data-save id="cataract" class="input mt-1" onchange="updateAll()"><option value="">ไม่ระบุ</option><option value="no">ไม่ใช่</option><option value="yes">ใช่</option></select></label>
+              <label>มีแว่น/เครื่องช่วยฟังที่ใช้งานได้<select data-save id="aidsOk" class="input mt-1" onchange="updateAll()"><option value="">ไม่ระบุ</option><option value="yes">ใช้งานได้</option><option value="no">มีปัญหา/ไม่มี</option></select></label>
+            </div>
+          </div>
+
+          <div class="card p-5">
+            <h2 class="text-xl font-extrabold">Oral / Denture / Dysphagia</h2>
+            <div class="grid md:grid-cols-2 gap-4 mt-4">
+              <label>ปวดฟัน/แผลในปาก<select data-save id="oralPain" class="input mt-1" onchange="updateAll()"><option value="">ไม่ระบุ</option><option value="no">ไม่มี</option><option value="yes">มี</option></select></label>
+              <label>ฟันปลอมหลวม/กดเจ็บ<select data-save id="dentureIssue" class="input mt-1" onchange="updateAll()"><option value="">ไม่ระบุ</option><option value="no">ไม่มี</option><option value="yes">มี</option></select></label>
+              <label>ไอ/สำลักเวลากินหรือดื่ม<select data-save id="choking" class="input mt-1" onchange="updateAll()"><option value="">ไม่ระบุ</option><option value="no">ไม่มี</option><option value="yes">มี</option></select></label>
+              <label>เสียงเปียกหลังกลืน<select data-save id="wetVoice" class="input mt-1" onchange="updateAll()"><option value="">ไม่ระบุ</option><option value="no">ไม่มี</option><option value="yes">มี</option></select></label>
+              <label>EAT-10 score<input data-save id="eat10" type="number" min="0" max="40" class="input mt-1" oninput="updateAll()" placeholder="0–40"></label>
+              <label>น้ำหนักลดจากกิน/กลืนลำบาก<select data-save id="swallowWeightLoss" class="input mt-1" onchange="updateAll()"><option value="">ไม่ระบุ</option><option value="no">ไม่ใช่</option><option value="yes">ใช่</option></select></label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Continence -->
+      <section id="continence" class="page space-y-5">
+        <div class="grid lg:grid-cols-2 gap-5">
+          <div class="card p-5">
+            <h2 class="text-xl font-extrabold">Continence Screening</h2>
+            <div id="continenceItems" class="mt-4 space-y-2"></div>
+            <label class="block mt-4">ชนิดที่สงสัย<select data-save id="uiType" class="input mt-1" onchange="updateAll()"><option value="">ยังไม่ระบุ</option><option>Stress UI</option><option>Urgency/OAB</option><option>Mixed UI</option><option>Overflow/retention</option><option>Functional incontinence</option><option>Fecal incontinence</option></select></label>
+          </div>
+
+          <div class="card p-5">
+            <h2 class="text-xl font-extrabold">Constipation Assessment</h2>
+            <div id="constipationItems" class="mt-4 space-y-2"></div>
+            <div class="grid md:grid-cols-2 gap-4 mt-4">
+              <label>ถ่ายกี่ครั้ง/สัปดาห์<input data-save id="bowelPerWeek" type="number" min="0" class="input mt-1" oninput="updateAll()"></label>
+              <label>Bristol stool type<input data-save id="bristol" type="number" min="1" max="7" class="input mt-1" oninput="updateAll()" placeholder="1–7"></label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Homecare -->
+      <section id="homecare" class="page space-y-5">
+        <div class="grid lg:grid-cols-2 gap-5">
+          <div class="card p-5">
+            <h2 class="text-xl font-extrabold">Caregiver Assessment</h2>
+            <div id="caregiverItems" class="mt-4 space-y-2"></div>
+            <div class="grid md:grid-cols-2 gap-4 mt-4">
+              <label>ZBI/MCSI score ถ้ามี<input data-save id="burdenScore" type="number" class="input mt-1" oninput="updateAll()"></label>
+              <label>ความพร้อมผู้ดูแล<select data-save id="caregiverReady" class="input mt-1" onchange="updateAll()"><option value="">ไม่ระบุ</option><option value="good">พร้อม</option><option value="partial">พร้อมบางส่วน</option><option value="poor">ไม่พร้อม/เหนื่อยมาก</option></select></label>
+            </div>
+          </div>
+
+          <div class="card p-5">
+            <h2 class="text-xl font-extrabold">Home Safety Checklist</h2>
+            <div id="homeSafetyItems" class="mt-4 space-y-2"></div>
+          </div>
+        </div>
+
+        <div class="card p-5">
+          <h2 class="text-xl font-extrabold">Goals of Care / Advance Care Planning</h2>
+          <div class="grid md:grid-cols-3 gap-4 mt-4">
+            <label>Decision-making capacity<select data-save id="capacity" class="input mt-1" onchange="updateAll()"><option value="">ไม่ระบุ</option><option>มี</option><option>ไม่มี</option><option>ไม่แน่ใจ</option></select></label>
+            <label>เป้าหมายการรักษาหลัก<select data-save id="goc" class="input mt-1" onchange="updateAll()"><option value="">ยังไม่คุย</option><option>Full treatment</option><option>Selective treatment</option><option>Comfort-focused care</option><option>Trial of treatment</option></select></label>
+            <label>Living Will<select data-save id="livingWill" class="input mt-1" onchange="updateAll()"><option value="">ไม่ระบุ</option><option>มีแล้ว</option><option>สนใจทำ/ให้ข้อมูลแล้ว</option><option>ยังไม่ต้องการ</option></select></label>
+          </div>
+          <label class="block mt-4">บันทึก ACP / สิ่งสำคัญของผู้ป่วย / ผู้แทนตัดสินใจ<textarea data-save id="acpNote" class="input mt-1 min-h-[130px]" placeholder="เช่น สิ่งสำคัญที่สุด, สิ่งที่ไม่อยากเจอ, CPR/ICU/ท่อ/feeding tube, preferred place of care"></textarea></label>
+        </div>
+      </section>
+
+      <!-- Summary -->
+      <section id="summary" class="page space-y-5">
+        <div class="card p-5 print-card">
+          <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+            <div>
+              <h2 class="text-2xl font-extrabold">สรุปผลประเมินคลินิกผู้สูงอายุ</h2>
+              <p id="summaryPatient" class="text-sm text-slate-500 mt-1">ยังไม่ได้กรอกข้อมูลผู้ป่วย</p>
+            </div>
+            <span id="summaryRiskBadge" class="badge bg-orange-100 text-orange-700">ยังไม่ประเมิน</span>
+          </div>
+          <div class="grid md:grid-cols-3 gap-4 mt-5">
+            <div class="rounded-2xl bg-slate-50 p-4 border border-slate-200">
+              <p class="text-xs font-bold text-slate-500">Frailty / Function</p>
+              <p id="summaryFrailty" class="mt-2 text-sm"></p>
+            </div>
+            <div class="rounded-2xl bg-slate-50 p-4 border border-slate-200">
+              <p class="text-xs font-bold text-slate-500">Cognition / Mood</p>
+              <p id="summaryCog" class="mt-2 text-sm"></p>
+            </div>
+            <div class="rounded-2xl bg-slate-50 p-4 border border-slate-200">
+              <p class="text-xs font-bold text-slate-500">Mobility / Sarcopenia / Nutrition</p>
+              <p id="summaryMobNut" class="mt-2 text-sm"></p>
+            </div>
+          </div>
+
+          <div class="grid lg:grid-cols-2 gap-5 mt-5">
+            <div>
+              <h3 class="text-lg font-extrabold">ปัญหา/ธงแดงที่ควรติดตาม</h3>
+              <ul id="summaryFlags" class="mt-3 space-y-2 text-sm"></ul>
+            </div>
+            <div>
+              <h3 class="text-lg font-extrabold">แผนดูแลที่แนะนำ</h3>
+              <ul id="summaryActions" class="mt-3 space-y-2 text-sm"></ul>
+            </div>
+          </div>
+
+          <label class="block mt-5">แผนเฉพาะรายโดยแพทย์<textarea data-save id="doctorPlan" class="input mt-1 min-h-[150px]" placeholder="บันทึก assessment/plan เฉพาะราย เช่น ปรับยา ส่งกายภาพ ส่งนักโภชนาการ นัดติดตาม"></textarea></label>
+        </div>
+      </section>
+    </main>
+  </div>
+
+<script>
+const $ = (id)=>document.getElementById(id);
+const num = (id)=> { const v = parseFloat($(id)?.value); return Number.isFinite(v) ? v : null; };
+const val = (id)=> $(id)?.value || '';
+const checked = (id)=> $(id)?.checked || false;
+
+const FLAGS = [];
+const ACTIONS = [];
+
+function pill(text, color='slate') {
+  const map = {
+    slate:'bg-slate-100 text-slate-700',
+    green:'bg-emerald-100 text-emerald-700',
+    yellow:'bg-amber-100 text-amber-800',
+    red:'bg-rose-100 text-rose-700',
+    orange:'bg-orange-100 text-orange-700',
+    blue:'bg-sky-100 text-sky-700'
+  };
+  return `<span class="badge ${map[color]||map.slate}">${text}</span>`;
+}
+function addFlag(text){ if(!FLAGS.includes(text)) FLAGS.push(text); }
+function addAction(text){ if(!ACTIONS.includes(text)) ACTIONS.push(text); }
+
+function checkboxItem(id, label, group='default') {
+  return `<label class="flex gap-3 items-start p-3 rounded-2xl border border-slate-200 hover:bg-orange-50 cursor-pointer">
+    <input data-save id="${id}" type="checkbox" class="mt-1 accent-orange-600" onchange="updateAll()">
+    <span class="text-sm">${label}</span>
+  </label>`;
+}
+function selectItem(id, label, opts) {
+  return `<label class="block text-sm">${label}<select data-save id="${id}" class="input mt-1" onchange="updateAll()">${opts.map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('')}</select></label>`;
+}
+
+const rapid = [
+  ['rapidWeight','น้ำหนักลดใน 1 ปีหรือกินได้น้อยลง'],
+  ['rapidFrailty','เหนื่อยง่าย เดินไกล/ขึ้นบันไดลำบาก'],
+  ['rapidFall','เคยหกล้มใน 1 ปี'],
+  ['rapidGait','เดินช้าหรือทรงตัวไม่ดี'],
+  ['rapidAdl','ช่วยเหลือตัวเองลดลง'],
+  ['rapidCog','ลืมบ่อยกระทบชีวิตประจำวัน'],
+  ['rapidMood','ซึมเศร้า เบื่อ ไม่อยากทำกิจกรรม'],
+  ['rapidMed','กินยา ≥5 ชนิดหรือมียาเสี่ยงง่วง/เวียนหัว'],
+  ['rapidSensory','มองไม่ชัด/หูตึงจนกระทบการใช้ชีวิต'],
+  ['rapidSocial','อยู่คนเดียว/ผู้ดูแลไม่พร้อม/บ้านเสี่ยงล้ม']
+];
+
+const frail = [
+  ['frailFatigue','F: เหนื่อย/อ่อนเพลียตลอดเวลาหรือเกือบตลอดเวลาใน 4 สัปดาห์'],
+  ['frailResistance','R: ขึ้นบันได 10 ขั้นเองโดยไม่พักลำบาก'],
+  ['frailAmbulation','A: เดินเองประมาณ 300–400 เมตรลำบาก'],
+  ['frailIllness','I: มีโรคร่วมหลายโรค โดยเฉพาะ ≥5 โรค'],
+  ['frailLoss','L: น้ำหนักลด ≥5% ใน 1 ปี']
+];
+
+const barthel = [
+  ['btFeeding','รับประทานอาหาร', [['0','ต้องช่วย/ทำไม่ได้'],['1','ต้องช่วยบางส่วน'],['2','ทำเองได้']]],
+  ['btGrooming','ล้างหน้า หวีผม แปรงฟัน', [['0','ทำไม่ได้'],['1','ทำเองได้']]],
+  ['btTransfer','ลุกจากเตียงไปเก้าอี้', [['0','ทำไม่ได้'],['1','ช่วยมาก'],['2','ช่วยน้อย'],['3','ทำเองได้']]],
+  ['btToilet','ใช้ห้องน้ำ', [['0','ทำไม่ได้'],['1','ช่วยบางส่วน'],['2','ทำเองได้']]],
+  ['btMobility','เดิน/เคลื่อนที่ในบ้าน', [['0','ทำไม่ได้'],['1','ใช้ wheelchair เอง'],['2','เดินโดยมีคนช่วย/อุปกรณ์'],['3','เดินเองได้']]],
+  ['btDress','แต่งตัว', [['0','ทำไม่ได้'],['1','ช่วยบางส่วน'],['2','ทำเองได้']]],
+  ['btStairs','ขึ้นลงบันได', [['0','ทำไม่ได้'],['1','ช่วยบางส่วน'],['2','ทำเองได้']]],
+  ['btBath','อาบน้ำ', [['0','ทำไม่ได้'],['1','ทำเองได้']]],
+  ['btBowel','กลั้นอุจจาระ', [['0','กลั้นไม่ได้'],['1','มีอุบัติเหตุบางครั้ง'],['2','กลั้นได้']]],
+  ['btBladder','กลั้นปัสสาวะ', [['0','กลั้นไม่ได้'],['1','มีอุบัติเหตุบางครั้ง'],['2','กลั้นได้']]]
+];
+
+const katz = [
+  ['kBath','อาบน้ำ'], ['kDress','แต่งตัว'], ['kToilet','เข้าห้องน้ำ'], ['kTransfer','ย้ายเตียง/เก้าอี้'], ['kContinence','ควบคุมปัสสาวะ/อุจจาระ'], ['kFeed','รับประทานอาหาร']
+];
+const lawton = [
+  ['lPhone','ใช้โทรศัพท์'], ['lShop','ซื้อของ'], ['lFood','ทำอาหาร'], ['lHouse','ทำงานบ้าน'], ['lLaundry','ซักผ้า'], ['lTransport','เดินทาง'], ['lMeds','จัดยา'], ['lMoney','จัดการเงิน']
+];
+const twoQ = [
+  ['q2sad','รู้สึกหดหู่ เศร้า ท้อแท้ สิ้นหวัง'],
+  ['q2anhedonia','รู้สึกเบื่อ ทำอะไรก็ไม่เพลิดเพลิน']
+];
+const nineQ = [
+  ['q9_1','เบื่อ ไม่สนใจอยากทำอะไร'],
+  ['q9_2','ไม่สบายใจ ซึมเศร้า ท้อแท้'],
+  ['q9_3','หลับยาก/หลับ ๆ ตื่น ๆ/หลับมากไป'],
+  ['q9_4','เหนื่อยง่ายหรือไม่ค่อยมีแรง'],
+  ['q9_5','เบื่ออาหารหรือกินมากเกินไป'],
+  ['q9_6','รู้สึกไม่ดีกับตัวเอง/ล้มเหลว'],
+  ['q9_7','สมาธิไม่ดี'],
+  ['q9_8','พูดช้า/ทำอะไรช้า หรือกระสับกระส่าย'],
+  ['q9_9','คิดทำร้ายตนเองหรือคิดว่าตายไปคงดี']
+];
+const tgds = [
+  ['tgds1','โดยทั่วไปพอใจกับชีวิตหรือไม่','no'],
+  ['tgds2','เลิกสนใจสิ่งที่เคยทำ/กิจกรรมต่าง ๆ หรือไม่','yes'],
+  ['tgds3','รู้สึกว่าชีวิตว่างเปล่าหรือไม่','yes'],
+  ['tgds4','เบื่อบ่อยหรือไม่','yes'],
+  ['tgds5','มีความหวังกับอนาคตหรือไม่','no'],
+  ['tgds6','มีความคิดกังวลที่สลัดไม่ออกหรือไม่','yes'],
+  ['tgds7','รู้สึกอารมณ์ดีเป็นส่วนใหญ่หรือไม่','no'],
+  ['tgds8','กลัวว่าจะมีเรื่องร้ายเกิดขึ้นหรือไม่','yes'],
+  ['tgds9','รู้สึกไม่มีความสุขบ่อยหรือไม่','yes'],
+  ['tgds10','รู้สึกช่วยเหลือตัวเองไม่ได้บ่อยหรือไม่','yes'],
+  ['tgds11','กระสับกระส่าย/นั่งไม่ติดบ่อยหรือไม่','no'],
+  ['tgds12','ชอบอยู่บ้านมากกว่าออกไปทำสิ่งใหม่หรือไม่','yes'],
+  ['tgds13','รู้สึกว่าตนเองมีพลังดีหรือไม่','no'],
+  ['tgds14','รู้สึกว่าสถานการณ์สิ้นหวังหรือไม่','yes'],
+  ['tgds15','คิดว่าคนอื่นดีกว่าตนเองหรือไม่','yes']
+];
+const sarcF = [
+  ['sfStrength','ยก/ถือของหนักประมาณ 4.5 kg ลำบาก'],
+  ['sfWalk','เดินข้ามห้องลำบาก'],
+  ['sfChair','ลุกจากเก้าอี้หรือเตียงลำบาก'],
+  ['sfStairs','ขึ้นบันได 10 ขั้นลำบาก'],
+  ['sfFalls','ล้มใน 1 ปีที่ผ่านมา: 0 ไม่ล้ม, 1 ล้ม 1–3 ครั้ง, 2 ล้ม ≥4 ครั้ง']
+];
+const mna = [
+  ['mnaA','กินอาหารลดลงใน 3 เดือน', [['0','รุนแรง'],['1','ปานกลาง'],['2','ไม่ลด']]],
+  ['mnaB','น้ำหนักลดใน 3 เดือน', [['0','>3 kg'],['1','ไม่ทราบ'],['2','1–3 kg'],['3','ไม่ลด']]],
+  ['mnaC','การเคลื่อนไหว', [['0','ติดเตียง/เก้าอี้'],['1','ลุกจากเตียงได้แต่ไม่ออกนอกบ้าน'],['2','ออกนอกบ้านได้']]],
+  ['mnaD','acute disease / psychological stress ใน 3 เดือน', [['0','มี'],['2','ไม่มี']]],
+  ['mnaE','dementia / depression', [['0','รุนแรง'],['1','เล็กน้อย'],['2','ไม่มี']]],
+  ['mnaF','BMI หรือรอบน่องแทน', [['0','BMI <19 หรือ CC ต่ำมาก'],['1','BMI 19–<21'],['2','BMI 21–<23'],['3','BMI ≥23 หรือ CC ปกติ']]]
+];
+const beers = [
+  ['beerBenzo','Benzodiazepine / Z-drug'],
+  ['beerAnticholinergic','Anticholinergic เช่น CPM, hydroxyzine, amitriptyline, oxybutynin'],
+  ['beerNSAID','NSAID ต่อเนื่อง/เสี่ยงไต-เลือดออก'],
+  ['beerSU','Sulfonylurea เสี่ยงน้ำตาลต่ำ เช่น glibenclamide'],
+  ['beerPPI','PPI นานโดยไม่มีข้อบ่งชี้'],
+  ['beerAntipsychotic','Antipsychotic โดยไม่มีข้อบ่งชี้ชัดเจน']
+];
+const stopp = [
+  ['stoppNoInd','มียาที่ไม่ทราบข้อบ่งชี้'],
+  ['stoppDup','มียาซ้ำกลุ่ม/ซ้ำซ้อน'],
+  ['stoppRenal','มี CKD แต่ยังไม่ปรับขนาดยา'],
+  ['stoppFalls','มียาเพิ่ม fall risk/orthostatic hypotension'],
+  ['stoppLong','ใช้ยานานเกินจำเป็น เช่น PPI/benzo/opioid']
+];
+const start = [
+  ['startBone','เสี่ยงกระดูกพรุน/กระดูกหักแต่ยังไม่ประเมิน/รักษา'],
+  ['startAF','AF/Stroke risk แต่ยังไม่ทบทวน anticoagulation'],
+  ['startVaccine','วัคซีนผู้สูงอายุยังไม่ครบ'],
+  ['startSecondary','มี CVD/Stroke/MI แต่ secondary prevention ยังไม่ครบ'],
+  ['startPain','มี pain/constipation/depression แต่ยังไม่ได้แผนรักษาที่เหมาะสม']
+];
+const continence = [
+  ['contUrine','ปัสสาวะเล็ดโดยไม่ตั้งใจ'],
+  ['contStress','เล็ดเวลาไอ/จาม/หัวเราะ/ยกของ'],
+  ['contUrgency','ปวดปัสสาวะทันที กลั้นไม่ทัน'],
+  ['contNocturia','ปัสสาวะกลางคืน ≥2 ครั้ง'],
+  ['contRetention','ปัสสาวะไม่สุด/สายอ่อน/เบ่ง'],
+  ['contFunctional','ไปห้องน้ำไม่ทันเพราะเดินช้า/สมองเสื่อม/ห้องน้ำไกล'],
+  ['contFecal','อุจจาระเล็ด/เปื้อนกางเกงใน'],
+  ['contPad','ใช้ผ้าอ้อม/แผ่นรองซับเป็นประจำ']
+];
+const constipation = [
+  ['constHard','อุจจาระแข็ง/เป็นก้อนเล็ก'],
+  ['constStrain','ต้องเบ่งมาก'],
+  ['constIncomplete','รู้สึกถ่ายไม่สุด'],
+  ['constLax','ใช้ยาระบาย/สวน/ใช้นิ้วช่วย'],
+  ['constBloat','ท้องอืด ปวดท้อง เบื่ออาหาร'],
+  ['constOverflow','อุจจาระเหลวเล็ดร่วมกับท้องผูก'],
+  ['constRed','น้ำหนักลด/เลือดปน/ซีด/ท้องผูกใหม่ชัดเจน']
+];
+const caregiver = [
+  ['cgMain','มีผู้ดูแลหลักชัดเจน'],
+  ['cgBackup','มีผู้ดูแลสำรอง'],
+  ['cgMeds','ผู้ดูแลจัดยาได้ถูกต้อง'],
+  ['cgAdl','ผู้ดูแลช่วย ADL ได้ปลอดภัย'],
+  ['cgStress','ผู้ดูแลเหนื่อย เครียด นอนไม่พอ'],
+  ['cgMoney','มีปัญหาค่าใช้จ่าย/อุปกรณ์ดูแล'],
+  ['cgEmergency','มีแผนฉุกเฉินเมื่อผู้ดูแลไม่อยู่']
+];
+const homeSafety = [
+  ['homePath','ทางเดินโล่ง ไม่มีของเกะกะ'],
+  ['homeRug','ไม่มีพรมลื่น/สายไฟขวางทาง'],
+  ['homeLight','แสงสว่างพอ โดยเฉพาะกลางคืน'],
+  ['homeBathroom','ห้องน้ำมีราวจับ/พื้นกันลื่น'],
+  ['homeBed','เตียงลุกนั่งได้ง่าย'],
+  ['homeAssist','รองเท้า/ไม้เท้า/walker เหมาะสม'],
+  ['homeStairs','บันไดมีราวจับและไฟพอ'],
+  ['homeEmergency','มีเบอร์ฉุกเฉินและโทรศัพท์เข้าถึงง่าย']
+];
+
+function init() {
+  $('rapidScreen').innerHTML = rapid.map(x=>checkboxItem(x[0],x[1])).join('');
+  $('frailItems').innerHTML = frail.map(x=>checkboxItem(x[0],x[1])).join('');
+  $('barthelItems').innerHTML = barthel.map(([id,label,opts])=>selectItem(id,label, [['','เลือก']].concat(opts))).join('');
+  $('katzItems').innerHTML = katz.map(x=>checkboxItem(x[0],x[1])).join('');
+  $('lawtonItems').innerHTML = lawton.map(x=>checkboxItem(x[0],x[1])).join('');
+  $('twoQItems').innerHTML = twoQ.map(x=>checkboxItem(x[0],x[1])).join('');
+  $('nineQItems').innerHTML = nineQ.map(([id,label])=>selectItem(id,label, [['0','0 ไม่มี'],['1','1 บางวัน'],['2','2 บ่อย'],['3','3 ทุกวัน']])).join('');
+  $('tgdsItems').innerHTML = tgds.map(([id,label])=>selectItem(id,label, [['','เลือก'],['yes','ใช่'],['no','ไม่ใช่']])).join('');
+  $('sarcFItems').innerHTML = sarcF.map(([id,label])=>selectItem(id,label, [['0','0'],['1','1'],['2','2']])).join('');
+  $('mnaItems').innerHTML = mna.map(([id,label,opts])=>selectItem(id,label, opts)).join('');
+  $('beersItems').innerHTML = beers.map(x=>checkboxItem(x[0],x[1])).join('');
+  $('stoppItems').innerHTML = stopp.map(x=>checkboxItem(x[0],x[1])).join('');
+  $('startItems').innerHTML = start.map(x=>checkboxItem(x[0],x[1])).join('');
+  $('continenceItems').innerHTML = continence.map(x=>checkboxItem(x[0],x[1])).join('');
+  $('constipationItems').innerHTML = constipation.map(x=>checkboxItem(x[0],x[1])).join('');
+  $('caregiverItems').innerHTML = caregiver.map(([id,label])=>{
+    const isPositive = ['cgMain','cgBackup','cgMeds','cgAdl','cgEmergency'].includes(id);
+    return checkboxItem(id, label + (isPositive ? ' (ติ๊ก = พร้อม)' : ' (ติ๊ก = มีปัญหา)'));
+  }).join('');
+  $('homeSafetyItems').innerHTML = homeSafety.map(([id,label])=>checkboxItem(id, label + ' (ติ๊ก = ปลอดภัย)')).join('');
+  const today = new Date().toISOString().slice(0,10);
+  if(!$('visitDate').value) $('visitDate').value = today;
+  document.querySelectorAll('[data-save]').forEach(el => {
+    el.addEventListener('input', updateAll);
+    el.addEventListener('change', updateAll);
+  });
+  updateAll();
+}
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  $(id).classList.add('active');
+  document.querySelectorAll('.navBtn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+function filterNav() {
+  const q = $('menuSearch').value.toLowerCase();
+  document.querySelectorAll('#navList .navBtn').forEach(b=>{
+    b.style.display = b.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+function scoreChecks(list) { return list.reduce((sum,[id])=>sum+(checked(id)?1:0),0); }
+function scoreSelects(list) { return list.reduce((sum,[id])=>sum+(parseFloat(val(id))||0),0); }
+
+function updateAll() {
+  FLAGS.length = 0; ACTIONS.length = 0;
+
+  const rapidScore = scoreChecks(rapid);
+  $('rapidScoreBadge').innerHTML = `${rapidScore}/10`;
+  if(rapidScore >= 3){ addFlag(`Rapid screening ผิดปกติ ${rapidScore}/10 ข้อ`); addAction('ทำ CGA แบบเต็มในหมวดที่ผิดปกติ และจัดลำดับความเสี่ยง'); }
+
+  const frailScore = scoreChecks(frail);
+  let frailText = frailScore===0?'Non-frail': frailScore<=2?'Pre-frail':'Frail';
+  $('frailBadge').innerHTML = `${frailScore}/5 · ${frailText}`;
+  $('frailBadge').className = 'badge ' + (frailScore>=3?'bg-rose-100 text-rose-700': frailScore>=1?'bg-amber-100 text-amber-800':'bg-emerald-100 text-emerald-700');
+  if(frailScore>=3){ addFlag(`FRAIL ${frailScore}/5 = Frail`); addAction('ทำ CGA เต็ม ประเมิน fall, nutrition, sarcopenia, medication และ caregiver support'); }
+  else if(frailScore>=1){ addFlag(`FRAIL ${frailScore}/5 = Pre-frail`); addAction('เริ่ม resistance exercise, nutrition optimization และติดตาม 3–6 เดือน'); }
+
+  const cfs = parseInt(val('cfs'));
+  const cfsMap = {1:'แข็งแรงมาก',2:'แข็งแรง',3:'จัดการโรคได้ดี',4:'เริ่มเปราะบาง/เสี่ยง',5:'Mild frailty',6:'Moderate frailty',7:'Severe frailty',8:'Very severe frailty',9:'Terminally ill'};
+  $('cfsInterpret').innerHTML = cfs ? `${pill('CFS '+cfs, cfs>=7?'red':cfs>=5?'orange':cfs>=4?'yellow':'green')} <span class="ml-2">${cfsMap[cfs]}</span>` : 'เลือกคะแนนเพื่อแปลผล';
+  if(cfs>=5){ addFlag(`CFS ${cfs} = ${cfsMap[cfs]}`); addAction('ใช้ CFS ช่วยกำหนด intensity ของการรักษา, discharge plan, rehab และ ACP'); }
+  if(cfs>=7){ addAction('พิจารณา goals of care / palliative approach / caregiver & home care plan'); }
+
+  const barthelScore = scoreSelects(barthel);
+  let barthelInterp = barthelScore>=12?'ติดสังคม/ช่วยเหลือตนเองได้ดี': barthelScore>=5?'ติดบ้าน/ช่วยได้บางส่วน':'ติดเตียง/พึ่งพามาก';
+  $('barthelBadge').innerHTML = `${barthelScore}/20 · ${barthelInterp}`;
+  if(barthelScore>0 && barthelScore<12){ addFlag(`Barthel ADL ${barthelScore}/20 = ${barthelInterp}`); addAction('วางแผน rehab, caregiver training, home safety และติดตาม ADL'); }
+
+  const katzScore = scoreChecks(katz);
+  $('katzBadge').innerHTML = `${katzScore}/6`;
+  if(katzScore>0 && katzScore<6){ addFlag(`Katz ADL ${katzScore}/6 = ต้องช่วย BADL บางส่วน`); }
+
+  const lawtonScore = scoreChecks(lawton);
+  $('lawtonBadge').innerHTML = `${lawtonScore}/8`;
+  if(lawtonScore>0 && lawtonScore<7){ addFlag(`Lawton IADL ${lawtonScore}/8 = IADL ลดลง`); addAction('ประเมิน cognition, medication management, home support และความปลอดภัยในการใช้เงิน/เดินทาง'); }
+
+  const miniCog = (num('miniRecall')??0) + (num('miniClock')??0);
+  let cogLines = [];
+  if(num('miniRecall')!==null || num('miniClock')!==null) {
+    cogLines.push(`Mini-Cog ${miniCog}/5 ${miniCog<=2 ? pill('สงสัยผิดปกติ','red') : pill('ผ่านเบื้องต้น','green')}`);
+    if(miniCog<=2){ addFlag(`Mini-Cog ${miniCog}/5 สงสัย cognitive impairment`); addAction('ซักประวัติจากญาติ ทำ ADL/IADL ทบทวนยา/ซึมเศร้า/delirium และพิจารณา TMSE/MMSE/MoCA'); }
+  }
+  const mmse = num('mmse'), tmse = num('tmse'), moca = num('moca');
+  const edu = val('education');
+  if(mmse!==null){
+    let cut = edu==='illiterate'?14:edu==='primary'?17:edu==='higher'?22:null;
+    cogLines.push(`MMSE ${mmse}/30 ${cut && mmse<cut ? pill('ต่ำกว่าจุดตัดตามการศึกษา','red') : ''}`);
+    if(cut && mmse<cut){ addFlag(`MMSE ${mmse}/30 ต่ำกว่าจุดตัดตามการศึกษา`); }
+  }
+  if(tmse!==null){
+    cogLines.push(`TMSE ${tmse}/30 ${tmse<24 ? pill('สงสัยผิดปกติ','red') : ''}`);
+    if(tmse<24){ addFlag(`TMSE ${tmse}/30 สงสัย cognitive impairment`); }
+  }
+  if(moca!==null){
+    cogLines.push(`MoCA ${moca}/30 ${moca<26 ? pill('สงสัย MCI/cognitive impairment','orange') : ''}`);
+    if(moca<26){ addFlag(`MoCA ${moca}/30 สงสัย MCI/cognitive impairment`); addAction('ประเมิน executive function, Lawton IADL และ reversible causes'); }
+  }
+  $('cogInterpret').innerHTML = cogLines.length ? cogLines.join('<br>') : 'กรอกคะแนนเพื่อแปลผล';
+
+  const twoQScore = scoreChecks(twoQ);
+  $('twoQBadge').innerHTML = `${twoQScore}/2`;
+  if(twoQScore>0){ addFlag(`2Q positive ${twoQScore}/2`); addAction('ทำ 9Q และประเมิน suicide risk หาก 9Q ≥7 หรือมีความคิดทำร้ายตนเอง'); }
+  $('twoQInterpret').innerHTML = twoQScore>0 ? pill('2Q positive: ทำ 9Q ต่อ','orange') : pill('2Q negative','green');
+
+  const nineQScore = scoreSelects(nineQ);
+  const q9item9 = parseInt(val('q9_9')||'0');
+  let nineInterp = nineQScore<7?'ไม่มี/น้อยมาก':nineQScore<=12?'น้อย':nineQScore<=18?'ปานกลาง':'รุนแรง';
+  $('nineQBadge').innerHTML = `${nineQScore}/27 · ${nineInterp}`;
+  if(nineQScore>=7){ addFlag(`9Q ${nineQScore}/27 = ซึมเศร้าระดับ${nineInterp}`); addAction('ประเมิน 8Q/suicide risk, psychosocial factors, pain/sleep และพิจารณาส่งต่อสุขภาพจิต'); }
+  if(q9item9>0){ addFlag('9Q ข้อ 9 positive: มีความคิดทำร้ายตนเอง/อยากตาย'); addAction('ประเมินความเสี่ยงฆ่าตัวตายทันที จัด safety plan และส่งต่อฉุกเฉินตามความเสี่ยง'); }
+
+  let tgdsScore = 0, tgdsAnswered = 0;
+  tgds.forEach(([id,label,scoreIf])=>{ if(val(id)){ tgdsAnswered++; if(val(id)===scoreIf) tgdsScore++; }});
+  const tgdsInterp = tgdsScore<=5?'ไม่เข้าเกณฑ์':tgdsScore<=10?'สงสัยซึมเศร้า':'แนวโน้มซึมเศร้าชัดเจน';
+  $('tgdsBadge').innerHTML = `${tgdsScore}/15 · ${tgdsInterp}`;
+  if(tgdsAnswered && tgdsScore>=6){ addFlag(`TGDS-15 ${tgdsScore}/15 = ${tgdsInterp}`); addAction('ประเมิน depression ในผู้สูงอายุร่วมกับ cognition, pain, sleep, loneliness และโรคเรื้อรัง'); }
+
+  const tug = num('tug'), gd = num('gaitDistance'), gt = num('gaitTime');
+  let mobLines = [];
+  if(tug!==null){ mobLines.push(`TUG ${tug}s ${tug>=12?pill('เสี่ยงล้ม','red'):pill('ปกติ/เสี่ยงต่ำ','green')}`); if(tug>=12){ addFlag(`TUG ${tug}s ≥12s เสี่ยงล้ม`); addAction('ส่งกายภาพ/ฝึก strength-balance, ตรวจรองเท้า/อุปกรณ์ช่วยเดิน, ทบทวนยาและ orthostatic BP'); } }
+  if(gd!==null && gt!==null && gt>0){ const gs = gd/gt; mobLines.push(`Gait speed ${gs.toFixed(2)} m/s ${gs<0.8?pill('เดินช้า','red'):gs<1?pill('เริ่มช้า','yellow'):pill('ดี','green')}`); if(gs<0.8){ addFlag(`Gait speed ${gs.toFixed(2)} m/s <0.8 เดินช้า`); addAction('ประเมิน frailty/sarcopenia และเริ่ม exercise/nutrition plan'); } }
+  if(val('tandem')==='fail'){ mobLines.push(`Tandem stand: ${pill('ไม่ผ่าน','red')}`); addFlag('Balance test: Tandem stand ไม่ผ่าน'); addAction('ฝึก balance และประเมิน home hazard/fall prevention'); }
+  $('mobilityInterpret').innerHTML = mobLines.length ? mobLines.join('<br>') : 'กรอกผลเพื่อแปลผล';
+
+  const sbpLie = num('sbpLie'), dbpLie = num('dbpLie'), sbpStand = num('sbpStand'), dbpStand = num('dbpStand');
+  if(sbpLie!==null && sbpStand!==null && dbpLie!==null && dbpStand!==null){
+    const dSBP = sbpLie - sbpStand, dDBP = dbpLie - dbpStand;
+    const positive = dSBP>=20 || dDBP>=10;
+    $('orthostaticInterpret').innerHTML = `SBP ลด ${dSBP} mmHg, DBP ลด ${dDBP} mmHg ${positive?pill('Orthostatic positive','red'):pill('ไม่เข้าเกณฑ์','green')}`;
+    if(positive){ addFlag('Orthostatic BP positive'); addAction('ทบทวนยา antihypertensive/diuretic/alpha-blocker, hydration, ลุกช้า ๆ และ fall prevention'); }
+  } else {
+    $('orthostaticInterpret').innerHTML = 'เกณฑ์ทั่วไป: SBP ลด ≥20 หรือ DBP ลด ≥10 mmHg';
+  }
+
+  const sarcFScore = scoreSelects(sarcF);
+  $('sarcFBadge').innerHTML = `${sarcFScore}/10`;
+  if(sarcFScore>=4){ addFlag(`SARC-F ${sarcFScore}/10 เสี่ยง sarcopenia`); addAction('วัดรอบน่อง/แรงบีบมือ/5-time chair stand และเริ่ม resistance exercise + protein optimization'); }
+  const sex = val('ptSex'), calf = num('calf'), grip = num('grip'), chair5 = num('chair5');
+  let sarcLines = [];
+  if(calf!==null){
+    let low = sex==='ชาย' ? calf<34 : sex==='หญิง' ? calf<33 : false;
+    sarcLines.push(`รอบน่อง ${calf} cm ${low?pill('ต่ำ','red'):pill('ดูตามเพศ','green')}`);
+    if(low){ addFlag(`รอบน่องต่ำ (${calf} cm) สงสัยมวลกล้ามเนื้อลด`); }
+  }
+  if(grip!==null){
+    let low = sex==='ชาย' ? grip<28 : sex==='หญิง' ? grip<18 : false;
+    sarcLines.push(`Grip ${grip} kg ${low?pill('ต่ำ','red'):pill('ดูตามเพศ','green')}`);
+    if(low){ addFlag(`แรงบีบมือต่ำ (${grip} kg)`); addAction('เริ่ม resistance exercise และประเมิน sarcopenia/nutrition'); }
+  }
+  if(chair5!==null){ sarcLines.push(`5-time chair stand ${chair5}s ${chair5>=12?pill('ช้า','red'):pill('ดี','green')}`); if(chair5>=12){ addFlag(`5-time chair stand ${chair5}s ≥12s`); } }
+  if(val('fallHistory')==='multiple'){ addFlag('ล้มซ้ำ ≥2 ครั้งใน 1 ปี'); addAction('ทำ multifactorial fall risk assessment และพิจารณาเยี่ยมบ้าน'); }
+  $('sarcInterpret').innerHTML = sarcLines.length ? sarcLines.join('<br>') : 'กรอกค่าเพื่อประเมินกล้ามเนื้อน้อย/แรงน้อย';
+
+  const mnaScore = scoreSelects(mna);
+  const mnaInterp = mnaScore>=12?'ปกติ':mnaScore>=8?'เสี่ยงขาดสารอาหาร':'ขาดสารอาหาร';
+  $('mnaBadge').innerHTML = `${mnaScore}/14 · ${mnaInterp}`;
+  if(mnaScore>0 && mnaScore<=11){ addFlag(`MNA-SF ${mnaScore}/14 = ${mnaInterp}`); addAction('ประเมิน intake, ฟัน/กลืน, depression/dementia, social support และส่งนักโภชนาการตามความเหมาะสม'); }
+
+  const wNow = num('weightNow'), h = num('heightCm'), wPrev = num('weightPrev');
+  let nutLines = [];
+  if(wNow!==null && h!==null && h>0){
+    const bmi = wNow / Math.pow(h/100,2);
+    nutLines.push(`BMI ${bmi.toFixed(1)} kg/m² ${bmi<22 && (num('ptAge')||0)>=70 ? pill('เสี่ยงในอายุ ≥70','orange') : bmi<18.5 ? pill('ต่ำ','red') : ''}`);
+    if(bmi<18.5 || (bmi<22 && (num('ptAge')||0)>=70)){ addFlag(`BMI ต่ำ/เสี่ยง (${bmi.toFixed(1)})`); }
+  }
+  if(wNow!==null && wPrev!==null && wPrev>0){
+    const wl = ((wPrev-wNow)/wPrev)*100;
+    nutLines.push(`น้ำหนักลด ${wl.toFixed(1)}%`);
+    if(wl>=5){ addFlag(`น้ำหนักลด ${wl.toFixed(1)}%`); addAction('หาสาเหตุน้ำหนักลด เช่น malignancy, depression, dementia, dysphagia, oral health, medication และ nutrition support'); }
+  }
+  const alb = num('albumin');
+  if(alb!==null){ nutLines.push(`Albumin ${alb} g/dL ${alb<3.5?pill('ต่ำ: แปลร่วมกับ inflammation/โรคอื่น','orange'):''}`); if(alb<3.5){ addFlag('Albumin ต่ำ: ไม่ใช้วินิจฉัย malnutrition เดี่ยว ๆ ต้องหาสาเหตุร่วม'); } }
+  if(val('lowIntake')==='yes'){ addFlag('กินได้น้อยลง'); }
+  $('nutritionInterpret').innerHTML = nutLines.length ? nutLines.join('<br>') : 'กรอกข้อมูลเพื่อคำนวณ BMI และน้ำหนักลด';
+
+  const medCount = num('medCount');
+  if(medCount!==null && medCount>=5){ addFlag(`Polypharmacy: ยา ${medCount} รายการ`); addAction('ทำ medication reconciliation + Beers/STOPP/START review'); }
+  if(val('medManage')==='no'){ addFlag('ผู้ป่วย/ญาติจัดยาเองไม่ได้หรือไม่มั่นใจ'); addAction('ทำ medication list ฉบับเดียว ใช้ pill box และให้ญาติ/เภสัชกรช่วยทบทวน'); }
+  beers.forEach(([id,label])=>{ if(checked(id)){ addFlag(`Beers risk: ${label}`); addAction('ทบทวน risk-benefit, ลดขนาด/หยุด/เปลี่ยนยา และติดตาม withdrawal/อาการกลับเป็นซ้ำ'); }});
+  stopp.forEach(([id,label])=>{ if(checked(id)){ addFlag(`STOPP prompt: ${label}`); }});
+  start.forEach(([id,label])=>{ if(checked(id)){ addAction(`พิจารณา START: ${label}`); }});
+
+  if(val('whisperR')==='fail' || val('whisperL')==='fail'){ addFlag('Whisper test ไม่ผ่าน'); addAction('ตรวจขี้หู/เครื่องช่วยฟัง และพิจารณาส่งโสตฯ/audiometry'); }
+  if(val('cataract')==='yes'){ addFlag('สงสัยต้อกระจก/visual impairment'); addAction('ส่งจักษุ/ตรวจแว่นและประเมินผลต่อ fall/ADL'); }
+  if(val('aidsOk')==='no'){ addAction('ตรวจแว่น/เครื่องช่วยฟัง: ความสะอาด เลนส์ แบตเตอรี่ ear mold และการใช้งานจริง'); }
+  if(val('oralPain')==='yes' || val('dentureIssue')==='yes'){ addFlag('ช่องปาก/ฟันปลอมมีปัญหา'); addAction('ส่งทันตกรรม ตรวจฟันปลอม แผลในปาก และเชื่อมกับ nutrition/weight loss'); }
+  const eat = num('eat10');
+  if(val('choking')==='yes' || val('wetVoice')==='yes' || (eat!==null && eat>=3) || val('swallowWeightLoss')==='yes'){
+    addFlag('สงสัย dysphagia/aspiration risk');
+    addAction('หยุดทดสอบกลืนที่เสี่ยง ส่งประเมิน swallow/ENT/SLP และปรับอาหารตามคำแนะนำ');
+  }
+
+  continence.forEach(([id,label])=>{ if(checked(id)){ addFlag(`Continence: ${label}`); }});
+  if(scoreChecks(continence)>0){ addAction('ทำ bladder/bowel diary, ทบทวนยา, แยก stress/urgency/overflow/functional และวางแผน toileting'); }
+  const bowel = num('bowelPerWeek');
+  if(bowel!==null && bowel<3){ addFlag(`ถ่าย ${bowel} ครั้ง/สัปดาห์ = ท้องผูก`); }
+  constipation.forEach(([id,label])=>{ if(checked(id)){ addFlag(`Constipation: ${label}`); }});
+  if(checked('constOverflow')){ addAction('สงสัย fecal impaction/overflow diarrhea: พิจารณา DRE และจัดการ impaction ก่อนเพิ่ม fiber'); }
+  if(checked('constRed')){ addAction('มี red flags ท้องผูก: พิจารณาส่งต่อ/ตรวจเพิ่มเติมตามบริบท'); }
+
+  if(checked('cgStress') || val('caregiverReady')==='poor'){ addFlag('Caregiver burden สูง/ผู้ดูแลไม่พร้อม'); addAction('ส่งสังคมสงเคราะห์/ทีมเยี่ยมบ้าน สอนทักษะดูแล และวางแผน respite/ผู้ดูแลสำรอง'); }
+  if(checked('cgMoney')){ addFlag('มีปัญหาค่าใช้จ่าย/อุปกรณ์ดูแล'); }
+  const safeCount = scoreChecks(homeSafety);
+  if(safeCount>0 && safeCount<homeSafety.length){ addFlag(`Home safety checklist ผ่าน ${safeCount}/${homeSafety.length} ข้อ`); addAction('แก้จุดเสี่ยงในบ้าน: ทางเดิน ไฟ ห้องน้ำ ราวจับ พรม สายไฟ อุปกรณ์ฉุกเฉิน'); }
+  if(val('goc') && val('goc')!=='ยังไม่คุย'){ addAction('บันทึก Goals of Care/ACP ให้เห็นใน OPD-ER-ward-refer และทบทวนเมื่อโรคเปลี่ยน'); }
+  if(val('capacity')==='ไม่มี' || val('capacity')==='ไม่แน่ใจ'){ addFlag('Decision-making capacity ไม่มี/ไม่แน่ใจ'); addAction('ประเมิน capacity และระบุผู้แทนตัดสินใจ/ครอบครัวที่เกี่ยวข้อง'); }
+
+  updateDashboard();
+  updateSummary({frailScore,frailText,barthelScore,barthelInterp,katzScore,lawtonScore,miniCog,nineQScore,nineInterp,tgdsScore,mnaScore,mnaInterp});
+}
+
+function updateDashboard() {
+  const flagCount = FLAGS.length, actionCount = ACTIONS.length;
+  $('flagCount').textContent = flagCount;
+  $('actionCount').textContent = actionCount;
+  let level = 'ต่ำ', color='green', text='ยังไม่พบธงแดงสำคัญจากข้อมูลที่กรอก';
+  if(flagCount>=10){ level='สูงมาก'; color='red'; text='ควรทำ CGA เต็ม จัดลำดับปัญหา และติดตามใกล้ชิด'; }
+  else if(flagCount>=6){ level='สูง'; color='orange'; text='มีหลายมิติผิดปกติ ควรวางแผนสหวิชาชีพ'; }
+  else if(flagCount>=3){ level='ปานกลาง'; color='yellow'; text='ควรประเมินต่อในหมวดที่ผิดปกติ'; }
+  $('riskLevel').textContent = level;
+  $('riskText').textContent = text;
+  $('summaryRiskBadge').className = 'badge ' + (color==='red'?'bg-rose-100 text-rose-700': color==='orange'?'bg-orange-100 text-orange-700': color==='yellow'?'bg-amber-100 text-amber-800':'bg-emerald-100 text-emerald-700');
+  $('summaryRiskBadge').textContent = 'Risk: ' + level;
+  $('flagList').innerHTML = FLAGS.length ? FLAGS.map(f=>`<li>⚠️ ${f}</li>`).join('') : '<li class="text-slate-400">ยังไม่มีข้อมูลผิดปกติ</li>';
+  $('actionList').innerHTML = ACTIONS.length ? ACTIONS.map(a=>`<li>✅ ${a}</li>`).join('') : '<li class="text-slate-400">กรอกข้อมูลเพื่อให้ระบบสร้างคำแนะนำ</li>';
+  let fields = Array.from(document.querySelectorAll('[data-save]'));
+  let filled = fields.filter(el => el.type==='checkbox' ? el.checked : !!el.value).length;
+  $('completionPercent').textContent = Math.round((filled/fields.length)*100) + '%';
+}
+function updateSummary(s) {
+  const pt = [val('ptName')||'ไม่ระบุชื่อ', val('ptHN')?`HN ${val('ptHN')}`:'', val('ptAge')?`${val('ptAge')} ปี`:'', val('visitDate')?`วันที่ ${val('visitDate')}`:''].filter(Boolean).join(' · ');
+  $('summaryPatient').textContent = pt;
+  $('summaryFrailty').innerHTML = [
+    `FRAIL: ${s.frailScore}/5 (${s.frailText})`,
+    `CFS: ${val('cfs')||'-'}`,
+    `Barthel: ${s.barthelScore}/20 (${s.barthelInterp})`,
+    `Katz: ${s.katzScore}/6`,
+    `Lawton: ${s.lawtonScore}/8`
+  ].join('<br>');
+  $('summaryCog').innerHTML = [
+    `Mini-Cog: ${s.miniCog}/5`,
+    `MMSE/TMSE/MoCA: ${val('mmse')||'-'} / ${val('tmse')||'-'} / ${val('moca')||'-'}`,
+    `9Q: ${s.nineQScore}/27 (${s.nineInterp})`,
+    `TGDS-15: ${s.tgdsScore}/15`
+  ].join('<br>');
+  const gs = (num('gaitDistance')!==null && num('gaitTime')>0) ? (num('gaitDistance')/num('gaitTime')).toFixed(2) : '-';
+  $('summaryMobNut').innerHTML = [
+    `TUG: ${val('tug')||'-'} sec · Gait speed: ${gs} m/s`,
+    `SARC-F: ${scoreSelects(sarcF)}/10 · Calf/Grip: ${val('calf')||'-'} cm / ${val('grip')||'-'} kg`,
+    `MNA-SF: ${s.mnaScore}/14 (${s.mnaInterp})`
+  ].join('<br>');
+  $('summaryFlags').innerHTML = FLAGS.length ? FLAGS.map(f=>`<li>⚠️ ${f}</li>`).join('') : '<li class="text-slate-400">ไม่พบธงแดงจากข้อมูลที่กรอก</li>';
+  $('summaryActions').innerHTML = ACTIONS.length ? ACTIONS.map(a=>`<li>✅ ${a}</li>`).join('') : '<li class="text-slate-400">ยังไม่มีแผนแนะนำอัตโนมัติ</li>';
+}
+function collectData(){
+  const data = {};
+  document.querySelectorAll('[data-save]').forEach(el=>{
+    data[el.id] = el.type==='checkbox' ? el.checked : el.value;
+  });
+  return data;
+}
+function applyData(data){
+  document.querySelectorAll('[data-save]').forEach(el=>{
+    if(data.hasOwnProperty(el.id)){
+      if(el.type==='checkbox') el.checked = !!data[el.id];
+      else el.value = data[el.id];
+    }
+  });
+  updateAll();
+}
+function saveAll(){
+  localStorage.setItem('geriatricCGAData', JSON.stringify(collectData()));
+  alert('บันทึกข้อมูลในเครื่องนี้แล้ว');
+}
+function loadAll(){
+  const raw = localStorage.getItem('geriatricCGAData');
+  if(!raw){ alert('ยังไม่มีข้อมูลที่บันทึกไว้'); return; }
+  applyData(JSON.parse(raw));
+  alert('โหลดข้อมูลแล้ว');
+}
+function copySummary(){
+  updateAll();
+  const lines = [];
+  lines.push('สรุปคลินิกผู้สูงอายุ');
+  lines.push($('summaryPatient').textContent);
+  lines.push('');
+  lines.push('Frailty/Function:');
+  lines.push($('summaryFrailty').innerText);
+  lines.push('');
+  lines.push('Cognition/Mood:');
+  lines.push($('summaryCog').innerText);
+  lines.push('');
+  lines.push('Mobility/Nutrition:');
+  lines.push($('summaryMobNut').innerText);
+  lines.push('');
+  lines.push('ธงแดง:');
+  lines.push(FLAGS.length ? FLAGS.map(x=>'- '+x).join('\n') : '- ไม่มี');
+  lines.push('');
+  lines.push('แผนดูแล:');
+  lines.push(ACTIONS.length ? ACTIONS.map(x=>'- '+x).join('\n') : '- ไม่มี');
+  lines.push('');
+  lines.push('แผนแพทย์:');
+  lines.push(val('doctorPlan')||'-');
+  navigator.clipboard.writeText(lines.join('\n')).then(()=>alert('คัดลอกสรุปแล้ว'));
+}
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
